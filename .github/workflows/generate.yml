@@ -1,0 +1,21 @@
+name: AutoBlog
+on:
+  schedule:
+    - cron: '0 0,8,16 * * *'   # запуск в 3:00, 11:00, 19:00 МСК
+  workflow_dispatch:           # ручной запуск по кнопке
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: pip install requests
+      - name: Run script
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        run: python generate.py
