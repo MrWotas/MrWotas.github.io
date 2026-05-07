@@ -13,8 +13,6 @@ AFFILIATE_LINKS = {
     "по умолчанию": "https://admitad.com/..."
 }
 
-# -------------------------------------------------
-
 def generate_article(keyword):
     link = AFFILIATE_LINKS.get(keyword.split()[0].lower(), AFFILIATE_LINKS["по умолчанию"])
     prompt = f"""Ты полезный блогер. Напиши статью на тему "{keyword}" длиной 600–800 слов.
