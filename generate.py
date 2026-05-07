@@ -4,7 +4,7 @@ import os
 from datetime import datetime
 
 # ✅ 2. Настройки – сюда впиши свои данные из блокнота
-OPENROUTER_API_KEY = "ВСТАВЬ_СВОЙ_API_КЛЮЧ_ОТ_OPENROUTER"
+OPENROUTER_API_KEY = "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"
 # Больше не нужно! TWITTER_API_KEY, GEMINI_KEY и т.д. убраны для простоты,
 # но в будущем ты добавишь их обратно, как в оригинальном плане.
 
