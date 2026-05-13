@@ -4,10 +4,10 @@ from datetime import datetime
 
 # ---------- НАСТРОЙКИ ----------
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
-SITE_URL = "https://mrwotas.github.io"  # замени, если нужно
+SITE_URL = "https://MrWotas.github.io"   # ← замени твой_логин
 
 AFFILIATE_LINKS = {
-    "рюкзак": "https://alipromo.com/...",        # вставь свои партнёрские ссылки
+    "рюкзак": "https://alipromo.com/...",      # ← вставь свои ссылки
     "наушники": "https://admitad.com/g/...",
     "по умолчанию": "https://admitad.com/..."
 }
