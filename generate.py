@@ -1,17 +1,17 @@
-import requests
 import os
+import requests
 from datetime import datetime
 
-# ---------- НАСТРОЙКИ (замени на свои) ----------
+# ---------- НАСТРОЙКИ ----------
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
-SITE_URL = "https://MrWotas.github.io"
+SITE_URL = "https://mrwotas.github.io"  # замени, если нужно
 
-# Партнёрские ссылки (ключ – слово из темы)
 AFFILIATE_LINKS = {
-    "рюкзак": "https://alipromo.com/...твоя_ссылка",
+    "рюкзак": "https://alipromo.com/...",        # вставь свои партнёрские ссылки
     "наушники": "https://admitad.com/g/...",
     "по умолчанию": "https://admitad.com/..."
 }
+# -------------------------------
 
 def generate_article(keyword):
     link = AFFILIATE_LINKS.get(keyword.split()[0].lower(), AFFILIATE_LINKS["по умолчанию"])
@@ -19,6 +19,7 @@ def generate_article(keyword):
 Структура: заголовок H1, подзаголовки H2, списки. В середине или в конце органично вставь рекомендацию товара со ссылкой {link}.
 Оформи в Markdown: '# Заголовок'. После текста ничего не пиши."""
 
+    print("📡 Отправляю запрос в OpenRouter...")
     response = requests.post(
         url="https://openrouter.ai/api/v1/chat/completions",
         headers={
@@ -34,9 +35,13 @@ def generate_article(keyword):
         }
     )
     data = response.json()
+    print("📦 Ответ OpenRouter:", data)
+
     if "choices" not in data:
-        raise Exception(f"Ошибка OpenRouter: {data}")
+        raise Exception(f"❌ OpenRouter вернул ошибку: {data}")
+
     return data["choices"][0]["message"]["content"]
+
 
 def save_article(text, keyword):
     os.makedirs("_posts", exist_ok=True)
@@ -47,8 +52,9 @@ def save_article(text, keyword):
         f.write(f"---\nlayout: post\ntitle: \"{keyword}\"\ndate: {datetime.now().isoformat()}\ncategories: blog\n---\n")
         f.write(text)
     print(f"✅ Статья сохранена: {filename}")
+
+
 if __name__ == "__main__":
-    # Список тем (можно добавить много – скрипт будет выбирать по очереди)
     keywords = [
         "Как выбрать рюкзак для школы",
         "Топ бюджетных наушников 2026",
@@ -100,11 +106,10 @@ if __name__ == "__main__":
         "Лучшие бюджетные очистители воздуха",
         "Рейтинг недорогих дорожных несессеров",
         "Топ-5 гаджетов для приготовления кофе"
-       ]
-    # Автоматический выбор темы по времени суток
+    ]
+
     kw = keywords[datetime.now().hour % len(keywords)]
     print(f"📝 Генерирую: {kw}")
     article = generate_article(kw)
     save_article(article, kw)
     print("🎉 Готово! Робот отработал.")
-    
