@@ -157,9 +157,13 @@ if __name__ == "__main__":
         "access_token": os.getenv("TWITTER_ACCESS_TOKEN"),
         "access_secret": os.getenv("TWITTER_ACCESS_SECRET")
     }
+        # --- Настройки Telegram ---
     telegram_bot_token = os.getenv("TELEGRAM_BOT_TOKEN")
-    telegram_chat_id = "@твой_канал"  # или числовой ID
+    telegram_chat_id = "@mrwotasvlog"   # ← замени на свой @username или числовой ID
 
+    if telegram_bot_token:
+        post_to_telegram(kw, f"{SITE_URL}/{datetime.now().strftime('%Y/%m/%d')}/{kw.lower().replace(' ', '-')}", telegram_bot_token, telegram_chat_id)
+        
     pinterest_token = os.getenv("PINTEREST_ACCESS_TOKEN")
     pinterest_board_id = "1095641484287516870"
     pinterest_image_url = "https://via.placeholder.com/800x600.png?text=" + kw.replace(" ", "+")
