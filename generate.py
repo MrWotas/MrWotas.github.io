@@ -53,8 +53,8 @@ def generate_article(keyword, max_retries=3):
                 "Authorization": f"Bearer {OPENROUTER_API_KEY}",
                 "Content-Type": "application/json"
             },
-                        json={
-                "model": "openchat/openchat-7b:free",
+                               json={
+                "model": "mistralai/mistral-7b-instruct:free",
                 "messages": [
                     {"role": "system", "content": "Ты всегда отвечаешь на русском языке."},
                     {"role": "user", "content": prompt}
