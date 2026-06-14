@@ -15,6 +15,7 @@ AFFILIATE_LINKS = {
 # -------------------------------
 
 def generate_article(keyword):
+        print("🔑 Ключ OpenRouter:", OPENROUTER_API_KEY[:10] + "..." if OPENROUTER_API_KEY else "НЕ ЗАГРУЖЕН")
     link = AFFILIATE_LINKS.get(keyword.split()[0].lower(), AFFILIATE_LINKS["по умолчанию"])
     prompt = f"""Ты полезный блогер. Напиши статью на тему "{keyword}" длиной 600–800 слов.
 Структура: заголовок H1, подзаголовки H2, списки. В середине или в конце органично вставь рекомендацию товара со ссылкой {link}.
