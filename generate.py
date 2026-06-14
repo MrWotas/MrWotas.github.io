@@ -13,34 +13,6 @@ AFFILIATE_LINKS = {
 }
 # -------------------------------
 
-def generate_article(keyword):
-    link = AFFILIATE_LINKS.get(keyword.split()[0].lower(), AFFILIATE_LINKS["по умолчанию"])
-    prompt = f"""Ты полезный блогер. Напиши статью на тему "{keyword}" длиной 600–800 слов.
-Структура: заголовок H1, подзаголовки H2, списки. В середине или в конце органично вставь рекомендацию товара со ссылкой {link}.
-Оформи в Markdown: '# Заголовок'. После текста ничего не пиши."""
-
-    print("📡 Отправляю запрос в OpenRouter...")
-    response = requests.post(
-        url="https://openrouter.ai/api/v1/chat/completions",
-        headers={
-            "Authorization": f"Bearer {OPENROUTER_API_KEY}",
-            "Content-Type": "application/json"
-        },
-        json={
-            "model": "meta-llama/llama-3.2-3b-instruct:free",
-            "messages": [
-                {"role": "system", "content": "Ты всегда отвечаешь на русском языке."},
-                {"role": "user", "content": prompt}
-            ]
-        }
-    )
-    data = response.json()
-    print("📦 Ответ OpenRouter:", data)
-
-    if "choices" not in data:
-        raise Exception(f"❌ OpenRouter вернул ошибку: {data}")
-
-    return data["choices"][0]["message"]["content"]
 
 
 def save_article(text, keyword):
@@ -65,7 +37,48 @@ def post_to_twitter(title, url, twitter_creds):
     tweet_text = f"{title}\n\nЧитать: {url}\n#полезное #совет"
     client.create_tweet(text=tweet_text)
     print("🐦 Твит опубликован")
+    
+def generate_article(keyword, max_retries=3):
+    link = AFFILIATE_LINKS.get(keyword.split()[0].lower(), AFFILIATE_LINKS["по умолчанию"])
+    prompt = f"""Ты полезный блогер. Напиши статью на тему "{keyword}" длиной 600–800 слов.
+Структура: заголовок H1, подзаголовки H2, списки. В середине или в конце органично вставь рекомендацию товара со ссылкой {link}.
+Оформи в Markdown: '# Заголовок'. После текста ничего не пиши."""
 
+    print("📡 Отправляю запрос в OpenRouter...")
+    
+    for attempt in range(max_retries):
+        response = requests.post(
+            url="https://openrouter.ai/api/v1/chat/completions",
+            headers={
+                "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+                "Content-Type": "application/json"
+            },
+            json={
+                "model": "meta-llama/llama-3.2-3b-instruct:free",
+                "messages": [
+                    {"role": "system", "content": "Ты всегда отвечаешь на русском языке."},
+                    {"role": "user", "content": prompt}
+                ]
+            }
+        )
+        data = response.json()
+        print("📦 Ответ OpenRouter:", data)
+
+        if "choices" in data:
+            return data["choices"][0]["message"]["content"]
+
+        # Если ошибка 429 (ограничение скорости), ждём и пробуем снова
+        if data.get("error", {}).get("code") == 429:
+            retry_after = data["error"]["metadata"]["retry_after_seconds"]
+            print(f"⏳ Слишком много запросов. Жду {retry_after} секунд... (попытка {attempt+1}/{max_retries})")
+            import time
+            time.sleep(retry_after + 1)  # +1 для надёжности
+            continue
+        else:
+            # Другая ошибка – сразу прерываем
+            raise Exception(f"❌ OpenRouter вернул ошибку: {data}")
+
+    raise Exception("❌ Исчерпаны все попытки из-за ограничения скорости")
 
 def post_to_telegram(title, url, bot_token, chat_id):
     """Отправляет сообщение в Telegram-канал"""
