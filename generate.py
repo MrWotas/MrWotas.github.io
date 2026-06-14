@@ -44,17 +44,25 @@ def generate_article(keyword, max_retries=3):
 Структура: заголовок H1, подзаголовки H2, списки. В середине или в конце органично вставь рекомендацию товара со ссылкой {link}.
 Оформи в Markdown: '# Заголовок'. После текста ничего не пиши."""
 
-    print("📡 Отправляю запрос в OpenRouter...")
-    
-    for attempt in range(max_retries):
+    # Список резервных бесплатных моделей (обновлён на июнь 2026)
+    models = [
+        "meta-llama/llama-3.1-8b-instruct:free",
+        "mistralai/mistral-nemo:free",
+        "nousresearch/hermes-3-llama-3.1-405b:free",
+        "google/gemma-2-9b-it:free",
+        "cohere/command-r:free"
+    ]
+
+    for model in models:
+        print(f"📡 Пробую модель: {model}...")
         response = requests.post(
             url="https://openrouter.ai/api/v1/chat/completions",
             headers={
                 "Authorization": f"Bearer {OPENROUTER_API_KEY}",
                 "Content-Type": "application/json"
             },
-                               json={
-                "model": "mistralai/mistral-7b-instruct:free",
+            json={
+                "model": model,
                 "messages": [
                     {"role": "system", "content": "Ты всегда отвечаешь на русском языке."},
                     {"role": "user", "content": prompt}
@@ -62,23 +70,27 @@ def generate_article(keyword, max_retries=3):
             }
         )
         data = response.json()
-        print("📦 Ответ OpenRouter:", data)
+        print("📦 Ответ:", data)
 
         if "choices" in data:
             return data["choices"][0]["message"]["content"]
 
-        # Если ошибка 429 (ограничение скорости), ждём и пробуем снова
+        # Ошибка 429 – ждём и пробуем эту же модель
         if data.get("error", {}).get("code") == 429:
             retry_after = data["error"]["metadata"]["retry_after_seconds"]
-            print(f"⏳ Слишком много запросов. Жду {retry_after} секунд... (попытка {attempt+1}/{max_retries})")
-            import time
-            time.sleep(retry_after + 1)  # +1 для надёжности
-            continue
+            for attempt in range(max_retries):
+                print(f"⏳ Слишком много запросов. Жду {retry_after} секунд... (попытка {attempt+1}/{max_retries})")
+                import time
+                time.sleep(retry_after + 1)
+                response = requests.post(...)  # повторный запрос с той же моделью
+                data = response.json()
+                if "choices" in data:
+                    return data["choices"][0]["message"]["content"]
+        # Другие ошибки (404 и т.п.) – переходим к следующей модели
         else:
-            # Другая ошибка – сразу прерываем
-            raise Exception(f"❌ OpenRouter вернул ошибку: {data}")
+            print(f"⚠️ Модель {model} недоступна: {data.get('error', {}).get('message')}")
 
-    raise Exception("❌ Исчерпаны все попытки из-за ограничения скорости")
+    raise Exception("❌ Все резервные модели недоступны.")
 
 def post_to_telegram(title, url, bot_token, chat_id):
     """Отправляет сообщение в Telegram-канал"""
