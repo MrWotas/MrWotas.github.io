@@ -4,11 +4,20 @@ import time
 from datetime import datetime
 
 # ---------- НАСТРОЙКИ ----------
-DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY")
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
 SITE_URL = "https://mrwotas.github.io"   # ваш сайт
 
+# ОСНОВНАЯ МОДЕЛЬ — вставьте сюда идентификатор, скопированный с сайта OpenRouter
+MAIN_MODEL = "meta-llama/llama-3.2-3b-instruct:free"  # <-- ЗАМЕНИТЕ, если нашли другую
+
+# Резервные модели (если основная долго не отвечает)
+BACKUP_MODELS = [
+    "nousresearch/hermes-3-llama-3.1-405b:free",
+    "google/gemma-2-9b-it:free"
+]
+
 AFFILIATE_LINKS = {
-    "рюкзак": "https://alipromo.com/...",      # ← вставьте свои партнёрские ссылки
+    "рюкзак": "https://alipromo.com/...",
     "наушники": "https://admitad.com/g/...",
     "по умолчанию": "https://admitad.com/..."
 }
@@ -20,39 +29,47 @@ def generate_article(keyword):
 Структура: заголовок H1, подзаголовки H2, списки. В середине или в конце органично вставь рекомендацию товара со ссылкой {link}.
 Оформи в Markdown: '# Заголовок'. После текста ничего не пиши."""
 
-    print("📡 Отправляю запрос в DeepSeek...")
-    for attempt in range(3):
-        response = requests.post(
-            url="https://api.deepseek.com/v1/chat/completions",
-            headers={
-                "Authorization": f"Bearer {DEEPSEEK_API_KEY}",
-                "Content-Type": "application/json"
-            },
-            json={
-                "model": "deepseek-chat",
-                "messages": [
-                    {"role": "system", "content": "Ты всегда отвечаешь на русском языке."},
-                    {"role": "user", "content": prompt}
-                ],
-                "max_tokens": 1000,
-                "temperature": 0.7
-            }
-        )
-        data = response.json()
-        print("📦 Ответ:", data)
+    # Собираем модели для попыток: сначала основная, потом резервные
+    models_to_try = [MAIN_MODEL] + BACKUP_MODELS
 
-        if "choices" in data:
-            return data["choices"][0]["message"]["content"]
+    for model in models_to_try:
+        print(f"📡 Пробую модель: {model}")
+        # До 5 попыток с нарастающей паузой
+        for attempt in range(1, 6):
+            response = requests.post(
+                url="https://openrouter.ai/api/v1/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+                    "Content-Type": "application/json"
+                },
+                json={
+                    "model": model,
+                    "messages": [
+                        {"role": "system", "content": "Ты всегда отвечаешь на русском языке."},
+                        {"role": "user", "content": prompt}
+                    ]
+                }
+            )
+            data = response.json()
+            print("📦 Ответ:", data)
 
-        error_code = data.get("error", {}).get("code")
-        if error_code == "rate_limit_exceeded":
-            print(f"⏳ Превышен лимит запросов. Жду 30 секунд... (попытка {attempt+1}/3)")
-            time.sleep(30)
-            continue
-        else:
-            raise Exception(f"❌ DeepSeek вернул ошибку: {data}")
+            if "choices" in data:
+                return data["choices"][0]["message"]["content"]
 
-    raise Exception("❌ Не удалось получить ответ от DeepSeek после нескольких попыток")
+            error_code = data.get("error", {}).get("code")
+            if error_code == 429:
+                wait = 30 * attempt  # 30, 60, 90, 120, 150 секунд
+                print(f"⏳ Слишком много запросов. Жду {wait} секунд... (попытка {attempt}/5)")
+                time.sleep(wait)
+                continue
+            else:
+                # Другая ошибка (404, 401 и т.д.) — переходим к следующей модели
+                print(f"⚠️ Модель {model} не отвечает: {data.get('error', {}).get('message')}")
+                break  # выходим из цикла попыток для этой модели
+
+        print(f"❌ Модель {model} не смогла обработать запрос после 5 попыток.")
+
+    raise Exception("❌ Все модели перепробованы, но ответ не получен.")
 
 def save_article(text, keyword):
     os.makedirs("_posts", exist_ok=True)
@@ -64,10 +81,8 @@ def save_article(text, keyword):
         f.write(text)
     print(f"✅ Статья сохранена: {filename}")
 
-# (Функции для соцсетей остаются без изменений, возьмите из предыдущего ответа)
-# def post_to_telegram(...)
-# def post_to_twitter(...)
-# def post_to_pinterest(...)
+# Вставьте сюда функции post_to_telegram, post_to_twitter, post_to_pinterest (из предыдущих ответов)
+# ...
 
 if __name__ == "__main__":
     keywords = [
@@ -124,18 +139,17 @@ if __name__ == "__main__":
     ]
 
 
+
     kw = keywords[datetime.now().hour % len(keywords)]
     print(f"📝 Генерирую: {kw}")
     article = generate_article(kw)
     save_article(article, kw)
+
     post_url = f"{SITE_URL}/{datetime.now().strftime('%Y/%m/%d')}/{kw.lower().replace(' ', '-')}"
 
-    # Telegram
-    telegram_bot_token = os.getenv("TELEGRAM_BOT_TOKEN")
-    telegram_chat_id = "@MrWotas_Blog"
-    if telegram_bot_token:
-        # post_to_telegram(...)  # раскомментируйте, когда добавите функцию
-        pass
+    # Вызовы соцсетей (раскомментируйте, когда добавите функции)
+    # if os.getenv("TELEGRAM_BOT_TOKEN"):
+    #     post_to_telegram(...)
+    # ...
 
-    # Аналогично для Twitter/Pinterest (оставлены для будущего)
     print("🎉 Готово! Робот отработал.")
