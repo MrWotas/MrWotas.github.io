@@ -27,7 +27,7 @@ def generate_article(keyword):
             "Content-Type": "application/json"
         },
         json={
-            "model": "deepseek/deepseek-chat:free",
+            "model": "meta-llama/llama-3.2-3b-instruct:free",
             "messages": [
                 {"role": "system", "content": "Ты всегда отвечаешь на русском языке."},
                 {"role": "user", "content": prompt}
