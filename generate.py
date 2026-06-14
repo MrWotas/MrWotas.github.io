@@ -53,7 +53,45 @@ def save_article(text, keyword):
         f.write(text)
     print(f"✅ Статья сохранена: {filename}")
 
+def post_to_twitter(title, url, twitter_creds):
+    """Публикует твит с заголовком и ссылкой"""
+    import tweepy
+    client = tweepy.Client(
+        consumer_key=twitter_creds["api_key"],
+        consumer_secret=twitter_creds["api_secret"],
+        access_token=twitter_creds["access_token"],
+        access_token_secret=twitter_creds["access_secret"]
+    )
+    tweet_text = f"{title}\n\nЧитать: {url}\n#полезное #совет"
+    client.create_tweet(text=tweet_text)
+    print("🐦 Твит опубликован")
 
+
+def post_to_telegram(title, url, bot_token, chat_id):
+    """Отправляет сообщение в Telegram-канал"""
+    message = f"🔥 *{title}*\n\n{url}"
+    requests.post(
+        f"https://api.telegram.org/bot{bot_token}/sendMessage",
+        json={"chat_id": chat_id, "text": message, "parse_mode": "Markdown"}
+    )
+    print("📬 Сообщение в Telegram отправлено")
+
+
+def post_to_pinterest(title, url, image_url, board_id, access_token):
+    """Создаёт пин с картинкой"""
+    headers = {"Authorization": f"Bearer {access_token}"}
+    data = {
+        "board_id": board_id,
+        "title": title,
+        "description": title,
+        "source_url": url,
+        "media_source": {"source_type": "image_url", "url": image_url}
+    }
+    r = requests.post("https://api.pinterest.com/v5/pins", json=data, headers=headers)
+    if r.status_code == 201:
+        print("📌 Пин создан")
+    else:
+        print(f"⚠️ Ошибка Pinterest: {r.text}")
 if __name__ == "__main__":
     keywords = [
         "Как выбрать рюкзак для школы",
@@ -112,4 +150,25 @@ if __name__ == "__main__":
     print(f"📝 Генерирую: {kw}")
     article = generate_article(kw)
     save_article(article, kw)
+        # --- Настройки соцсетей (замени на свои или бери из секретов) ---
+    twitter_creds = {
+        "api_key": os.getenv("TWITTER_API_KEY"),
+        "api_secret": os.getenv("TWITTER_API_SECRET"),
+        "access_token": os.getenv("TWITTER_ACCESS_TOKEN"),
+        "access_secret": os.getenv("TWITTER_ACCESS_SECRET")
+    }
+    telegram_bot_token = os.getenv("TELEGRAM_BOT_TOKEN")
+    telegram_chat_id = "@твой_канал"  # или числовой ID
+
+    pinterest_token = os.getenv("PINTEREST_ACCESS_TOKEN")
+    pinterest_board_id = "твой_board_id"
+    pinterest_image_url = "https://via.placeholder.com/800x600.png?text=" + kw.replace(" ", "+")
+
+    # --- Постим (если заданы ключи) ---
+    if all(twitter_creds.values()):
+        post_to_twitter(kw, f"{SITE_URL}/{datetime.now().strftime('%Y/%m/%d')}/{kw.lower().replace(' ', '-')}", twitter_creds)
+    if telegram_bot_token:
+        post_to_telegram(kw, f"{SITE_URL}/{datetime.now().strftime('%Y/%m/%d')}/{kw.lower().replace(' ', '-')}", telegram_bot_token, telegram_chat_id)
+    if pinterest_token:
+        post_to_pinterest(kw, f"{SITE_URL}/{datetime.now().strftime('%Y/%m/%d')}/{kw.lower().replace(' ', '-')}", pinterest_image_url, pinterest_board_id, pinterest_token)
     print("🎉 Готово! Робот отработал.")
