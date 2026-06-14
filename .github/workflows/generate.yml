@@ -1,8 +1,8 @@
 name: AutoBlog
 on:
   schedule:
-    - cron: '0 0,8,16 * * *'   # запуск в 3:00, 11:00, 19:00 МСК
-  workflow_dispatch:           # ручной запуск по кнопке
+    - cron: '0 0,8,16 * * *'
+  workflow_dispatch:
 
 jobs:
   build:
@@ -14,9 +14,9 @@ jobs:
         with:
           python-version: '3.11'
       - name: Install dependencies
-        run: pip install requests
+        run: pip install requests tweepy
       - name: Run script
         env:
-          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
-          # другие ключи...
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          # другие секреты...
         run: python generate.py
