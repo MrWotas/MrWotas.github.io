@@ -161,7 +161,7 @@ if __name__ == "__main__":
     telegram_chat_id = "@твой_канал"  # или числовой ID
 
     pinterest_token = os.getenv("PINTEREST_ACCESS_TOKEN")
-    pinterest_board_id = "твой_board_id"
+    pinterest_board_id = "1095641484287516870"
     pinterest_image_url = "https://via.placeholder.com/800x600.png?text=" + kw.replace(" ", "+")
 
     # --- Постим (если заданы ключи) ---
