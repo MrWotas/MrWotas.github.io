@@ -1,19 +1,68 @@
 import os
 import requests
+import time
 from datetime import datetime
 
 # ---------- НАСТРОЙКИ ----------
 OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY")
-SITE_URL = "https://MrWotas.github.io"   # ← замени твой_логин
+SITE_URL = "https://mrwotas.github.io"   # ← ваш сайт
 
 AFFILIATE_LINKS = {
-    "рюкзак": "https://alipromo.com/...",      # ← вставь свои ссылки
+    "рюкзак": "https://alipromo.com/...",      # ← вставьте свои ссылки
     "наушники": "https://admitad.com/g/...",
     "по умолчанию": "https://admitad.com/..."
 }
 # -------------------------------
 
+def generate_article(keyword):
+    link = AFFILIATE_LINKS.get(keyword.split()[0].lower(), AFFILIATE_LINKS["по умолчанию"])
+    prompt = f"""Ты полезный блогер. Напиши статью на тему "{keyword}" длиной 600–800 слов.
+Структура: заголовок H1, подзаголовки H2, списки. В середине или в конце органично вставь рекомендацию товара со ссылкой {link}.
+Оформи в Markdown: '# Заголовок'. После текста ничего не пиши."""
 
+    # Список бесплатных моделей (актуален на июнь 2026)
+    models = [
+        "nousresearch/hermes-3-llama-3.1-405b:free",
+        "google/gemma-2-9b-it:free",
+        "cohere/command-r:free",
+        "mistralai/mistral-7b-instruct:free"   # если вернётся в free
+    ]
+
+    for model in models:
+        print(f"📡 Пробую модель: {model}")
+        for attempt in range(3):  # до 3 попыток на модель
+            response = requests.post(
+                url="https://openrouter.ai/api/v1/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+                    "Content-Type": "application/json"
+                },
+                json={
+                    "model": model,
+                    "messages": [
+                        {"role": "system", "content": "Ты всегда отвечаешь на русском языке."},
+                        {"role": "user", "content": prompt}
+                    ]
+                }
+            )
+            data = response.json()
+            print("📦 Ответ:", data)
+
+            if "choices" in data:
+                return data["choices"][0]["message"]["content"]
+
+            error_code = data.get("error", {}).get("code")
+            if error_code == 429:
+                retry_after = data["error"]["metadata"]["retry_after_seconds"]
+                print(f"⏳ Модель {model} ограничена. Жду {retry_after} сек (попытка {attempt+1}/3)")
+                time.sleep(retry_after + 1)
+                continue  # повторяем ту же модель
+            else:
+                # 404, 401 и др. – модель недоступна, переходим к следующей
+                print(f"⚠️ Модель {model} недоступна: {data['error']['message']}")
+                break  # выходим из цикла попыток для этой модели
+
+    raise Exception("❌ Все бесплатные модели временно недоступны. Попробуйте позже.")
 
 def save_article(text, keyword):
     os.makedirs("_posts", exist_ok=True)
@@ -25,75 +74,7 @@ def save_article(text, keyword):
         f.write(text)
     print(f"✅ Статья сохранена: {filename}")
 
-def post_to_twitter(title, url, twitter_creds):
-    """Публикует твит с заголовком и ссылкой"""
-    import tweepy
-    client = tweepy.Client(
-        consumer_key=twitter_creds["api_key"],
-        consumer_secret=twitter_creds["api_secret"],
-        access_token=twitter_creds["access_token"],
-        access_token_secret=twitter_creds["access_secret"]
-    )
-    tweet_text = f"{title}\n\nЧитать: {url}\n#полезное #совет"
-    client.create_tweet(text=tweet_text)
-    print("🐦 Твит опубликован")
-    
-def generate_article(keyword, max_retries=3):
-    link = AFFILIATE_LINKS.get(keyword.split()[0].lower(), AFFILIATE_LINKS["по умолчанию"])
-    prompt = f"""Ты полезный блогер. Напиши статью на тему "{keyword}" длиной 600–800 слов.
-Структура: заголовок H1, подзаголовки H2, списки. В середине или в конце органично вставь рекомендацию товара со ссылкой {link}.
-Оформи в Markdown: '# Заголовок'. После текста ничего не пиши."""
-
-    # Список резервных бесплатных моделей (обновлён на июнь 2026)
-    models = [
-        "meta-llama/llama-3.1-8b-instruct:free",
-        "mistralai/mistral-nemo:free",
-        "nousresearch/hermes-3-llama-3.1-405b:free",
-        "google/gemma-2-9b-it:free",
-        "cohere/command-r:free"
-    ]
-
-    for model in models:
-        print(f"📡 Пробую модель: {model}...")
-        response = requests.post(
-            url="https://openrouter.ai/api/v1/chat/completions",
-            headers={
-                "Authorization": f"Bearer {OPENROUTER_API_KEY}",
-                "Content-Type": "application/json"
-            },
-            json={
-                "model": model,
-                "messages": [
-                    {"role": "system", "content": "Ты всегда отвечаешь на русском языке."},
-                    {"role": "user", "content": prompt}
-                ]
-            }
-        )
-        data = response.json()
-        print("📦 Ответ:", data)
-
-        if "choices" in data:
-            return data["choices"][0]["message"]["content"]
-
-        # Ошибка 429 – ждём и пробуем эту же модель
-        if data.get("error", {}).get("code") == 429:
-            retry_after = data["error"]["metadata"]["retry_after_seconds"]
-            for attempt in range(max_retries):
-                print(f"⏳ Слишком много запросов. Жду {retry_after} секунд... (попытка {attempt+1}/{max_retries})")
-                import time
-                time.sleep(retry_after + 1)
-                response = requests.post(...)  # повторный запрос с той же моделью
-                data = response.json()
-                if "choices" in data:
-                    return data["choices"][0]["message"]["content"]
-        # Другие ошибки (404 и т.п.) – переходим к следующей модели
-        else:
-            print(f"⚠️ Модель {model} недоступна: {data.get('error', {}).get('message')}")
-
-    raise Exception("❌ Все резервные модели недоступны.")
-
 def post_to_telegram(title, url, bot_token, chat_id):
-    """Отправляет сообщение в Telegram-канал"""
     message = f"🔥 *{title}*\n\n{url}"
     requests.post(
         f"https://api.telegram.org/bot{bot_token}/sendMessage",
@@ -101,9 +82,19 @@ def post_to_telegram(title, url, bot_token, chat_id):
     )
     print("📬 Сообщение в Telegram отправлено")
 
+def post_to_twitter(title, url, creds):
+    import tweepy
+    client = tweepy.Client(
+        consumer_key=creds["api_key"],
+        consumer_secret=creds["api_secret"],
+        access_token=creds["access_token"],
+        access_token_secret=creds["access_secret"]
+    )
+    tweet_text = f"{title}\n{url}"
+    client.create_tweet(text=tweet_text)
+    print("🐦 Твит опубликован")
 
 def post_to_pinterest(title, url, image_url, board_id, access_token):
-    """Создаёт пин с картинкой"""
     headers = {"Authorization": f"Bearer {access_token}"}
     data = {
         "board_id": board_id,
@@ -117,6 +108,7 @@ def post_to_pinterest(title, url, image_url, board_id, access_token):
         print("📌 Пин создан")
     else:
         print(f"⚠️ Ошибка Pinterest: {r.text}")
+
 if __name__ == "__main__":
     keywords = [
         "Как выбрать рюкзак для школы",
@@ -175,29 +167,30 @@ if __name__ == "__main__":
     print(f"📝 Генерирую: {kw}")
     article = generate_article(kw)
     save_article(article, kw)
-        # --- Настройки соцсетей (замени на свои или бери из секретов) ---
+
+    post_url = f"{SITE_URL}/{datetime.now().strftime('%Y/%m/%d')}/{kw.lower().replace(' ', '-')}"
+
+    # Telegram
+    telegram_bot_token = os.getenv("TELEGRAM_BOT_TOKEN")
+    telegram_chat_id = "@MrWotas_Blog"   # ← замените на ваш канал
+    if telegram_bot_token:
+        post_to_telegram(kw, post_url, telegram_bot_token, telegram_chat_id)
+
+    # Twitter
     twitter_creds = {
         "api_key": os.getenv("TWITTER_API_KEY"),
         "api_secret": os.getenv("TWITTER_API_SECRET"),
         "access_token": os.getenv("TWITTER_ACCESS_TOKEN"),
         "access_secret": os.getenv("TWITTER_ACCESS_SECRET")
     }
-        # --- Настройки Telegram ---
-    telegram_bot_token = os.getenv("TELEGRAM_BOT_TOKEN")
-    telegram_chat_id = "@mrwotasvlog"   # ← замени на свой @username или числовой ID
-
-    if telegram_bot_token:
-        post_to_telegram(kw, f"{SITE_URL}/{datetime.now().strftime('%Y/%m/%d')}/{kw.lower().replace(' ', '-')}", telegram_bot_token, telegram_chat_id)
-        
-    pinterest_token = os.getenv("PINTEREST_ACCESS_TOKEN")
-    pinterest_board_id = "1095641484287516870"
-    pinterest_image_url = "https://via.placeholder.com/800x600.png?text=" + kw.replace(" ", "+")
-
-    # --- Постим (если заданы ключи) ---
     if all(twitter_creds.values()):
-        post_to_twitter(kw, f"{SITE_URL}/{datetime.now().strftime('%Y/%m/%d')}/{kw.lower().replace(' ', '-')}", twitter_creds)
-    if telegram_bot_token:
-        post_to_telegram(kw, f"{SITE_URL}/{datetime.now().strftime('%Y/%m/%d')}/{kw.lower().replace(' ', '-')}", telegram_bot_token, telegram_chat_id)
+        post_to_twitter(kw, post_url, twitter_creds)
+
+    # Pinterest
+    pinterest_token = os.getenv("PINTEREST_ACCESS_TOKEN")
+    pinterest_board_id = "1095641484287516870"  # ← ваш board_id
+    pinterest_image_url = "https://via.placeholder.com/800x600.png?text=" + kw.replace(" ", "+")
     if pinterest_token:
-        post_to_pinterest(kw, f"{SITE_URL}/{datetime.now().strftime('%Y/%m/%d')}/{kw.lower().replace(' ', '-')}", pinterest_image_url, pinterest_board_id, pinterest_token)
+        post_to_pinterest(kw, post_url, pinterest_image_url, pinterest_board_id, pinterest_token)
+
     print("🎉 Готово! Робот отработал.")
