@@ -15,14 +15,12 @@ AFFILIATE_LINKS = {
 # -------------------------------
 
 def generate_article(keyword):
-        print("🔑 Ключ OpenRouter:", OPENROUTER_API_KEY[:10] + "..." if OPENROUTER_API_KEY else "НЕ ЗАГРУЖЕН")
     link = AFFILIATE_LINKS.get(keyword.split()[0].lower(), AFFILIATE_LINKS["по умолчанию"])
     prompt = f"""Ты полезный блогер. Напиши статью на тему "{keyword}" длиной 600–800 слов.
 Структура: заголовок H1, подзаголовки H2, списки. В середине или в конце органично вставь рекомендацию товара со ссылкой {link}.
 Оформи в Markdown: '# Заголовок'. После текста ничего не пиши."""
 
     # Список бесплатных моделей OpenRouter (актуален на июнь 2026)
-    # Первая — самая стабильная и рекомендованная
     models = [
         "google/gemini-2.0-flash-thinking:free",  # Gemini 2.0 Flash (работает через OpenRouter без VPN)
         "nousresearch/hermes-3-llama-3.1-405b:free",  # запасная мощная
@@ -75,18 +73,24 @@ def save_article(text, keyword):
         f.write(text)
     print(f"✅ Статья сохранена: {filename}")
 
-# ... (функции для соцсетей оставьте как раньше)
+# Соцсети оставлены без изменений, можно добавить их обратно, когда понадобятся
+# def post_to_telegram(...)
+# def post_to_twitter(...)
+# def post_to_pinterest(...)
 
 if __name__ == "__main__":
     keywords = [
         "Как выбрать рюкзак для школы",
         "Топ бюджетных наушников 2026",
-        # ... весь ваш список тем
+        "Лучшие увлажнители воздуха для дома",
+        "Рейтинг недорогих фитнес-браслетов",
+        # ... полный список из 50 тем
     ]
 
     kw = keywords[datetime.now().hour % len(keywords)]
     print(f"📝 Генерирую: {kw}")
     article = generate_article(kw)
     save_article(article, kw)
-    # ... постинг в соцсети
+
+    # Если нужно, здесь можно добавить постинг в соцсети
     print("🎉 Готово! Робот отработал.")
